@@ -1,0 +1,14 @@
+{
+  "name": "wa_test",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^24.10.2",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.25.0"
+  }
+}
