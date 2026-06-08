@@ -158,7 +158,7 @@ app.get('/status', (req, res) => {
 SEND MESSAGE API
 */
 
-app.get('/send', async (req, res) => {
+app.post('/send', async (req, res) => {
 
     try {
 
