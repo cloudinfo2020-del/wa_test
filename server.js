@@ -30,7 +30,7 @@ const client = new Client({
 
     authStrategy: new LocalAuth({
 
-        dataPath: '/data/sessions'
+        dataPath: './data/sessions'
 
     }),
 
