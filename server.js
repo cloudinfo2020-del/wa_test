@@ -1,4 +1,4 @@
-```javascript
+
 const express = require('express');
 
 const {
@@ -292,4 +292,3 @@ app.listen(PORT, '0.0.0.0', () => {
     );
 
 });
-```
