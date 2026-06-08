@@ -1,5 +1,5 @@
+```javascript
 const express = require('express');
-
 
 const {
     Client,
@@ -9,6 +9,16 @@ const {
 const qrcode = require('qrcode');
 
 const app = express();
+
+/*
+BODY PARSER
+*/
+
+app.use(express.json());
+
+app.use(express.urlencoded({
+    extended: true
+}));
 
 let qrCodeImage = null;
 
@@ -38,6 +48,7 @@ const client = new Client({
     }
 
 });
+
 /*
 QR EVENT
 */
@@ -171,17 +182,38 @@ app.post('/send', async (req, res) => {
             return res.json({
 
                 status: false,
+
                 error: 'WhatsApp not connected'
 
             });
 
         }
 
+        /*
+        GET DATA
+        */
+
         let number =
-            req.query.number;
+            req.body.number;
 
         const message =
-            req.query.message;
+            req.body.message;
+
+        /*
+        VALIDATION
+        */
+
+        if (!number || !message) {
+
+            return res.json({
+
+                status: false,
+
+                error: 'number and message required'
+
+            });
+
+        }
 
         /*
         CLEAN NUMBER
@@ -208,6 +240,7 @@ app.post('/send', async (req, res) => {
             return res.json({
 
                 status: false,
+
                 error: 'Number not in WhatsApp'
 
             });
@@ -226,6 +259,7 @@ app.post('/send', async (req, res) => {
         return res.json({
 
             status: true,
+
             message: 'Message Sent'
 
         });
@@ -235,6 +269,7 @@ app.post('/send', async (req, res) => {
         return res.json({
 
             status: false,
+
             error: error.message
 
         });
@@ -257,3 +292,4 @@ app.listen(PORT, '0.0.0.0', () => {
     );
 
 });
+```
