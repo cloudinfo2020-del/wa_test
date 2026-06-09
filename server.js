@@ -41,6 +41,10 @@ const client = new Client({
         ],
 
         protocolTimeout: 120000
+    },
+
+    webVersionCache: {
+        type: 'none'
     }
 });
 
