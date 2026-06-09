@@ -366,10 +366,48 @@ app.listen(PORT, () => {
     console.log('================================');
 });
 
+client.on('loading_screen', (percent, message) => {
+
+    console.log('LOADING SCREEN:', percent, message);
+});
+
+client.on('authenticated', () => {
+
+    console.log('AUTHENTICATED SUCCESS');
+});
+
+client.on('auth_failure', (msg) => {
+
+    console.log('AUTH FAILURE:', msg);
+});
+
+client.on('ready', () => {
+
+    console.log('WHATSAPP READY');
+});
+
+client.on('disconnected', (reason) => {
+
+    console.log('DISCONNECTED:', reason);
+});
+
+client.on('change_state', (state) => {
+
+    console.log('CHANGE STATE:', state);
+});
+
 /*
 ==================================================
 INITIALIZE CLIENT
 ==================================================
 */
 
-client.initialize();
+client.initialize()
+.then(() => {
+
+    console.log('CLIENT INITIALIZED');
+})
+.catch(err => {
+
+    console.log('INITIALIZE ERROR:', err);
+});
