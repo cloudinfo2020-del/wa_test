@@ -1,4 +1,3 @@
-
 const express = require('express');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const QRCode = require('qrcode');
@@ -8,12 +7,18 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+/*
+==================================================
+VARIABLES
+==================================================
+*/
+
 let qrCodeData = '';
 
 /*
-================================================
+==================================================
 WHATSAPP CLIENT
-================================================
+==================================================
 */
 
 const client = new Client({
@@ -29,13 +34,7 @@ const client = new Client({
 
         args: [
             '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process'
+            '--disable-setuid-sandbox'
         ]
     },
 
@@ -45,26 +44,44 @@ const client = new Client({
 });
 
 /*
-================================================
+==================================================
 EVENTS
-================================================
+==================================================
 */
 
 client.on('qr', async (qr) => {
 
+    console.log('================================');
     console.log('QR RECEIVED');
+    console.log('================================');
 
     qrCodeData = qr;
 });
 
 client.on('authenticated', () => {
 
-    console.log('AUTHENTICATED SUCCESS');
+    console.log('================================');
+    console.log('AUTHENTICATED');
+    console.log('================================');
 });
 
 client.on('ready', () => {
 
+    console.log('================================');
     console.log('WHATSAPP READY');
+    console.log('================================');
+
+    if (client.info) {
+
+        console.log('CONNECTED NUMBER:', client.info.wid.user);
+    }
+});
+
+client.on('remote_session_saved', () => {
+
+    console.log('================================');
+    console.log('SESSION SAVED');
+    console.log('================================');
 });
 
 client.on('loading_screen', (percent, message) => {
@@ -79,32 +96,36 @@ client.on('change_state', (state) => {
 
 client.on('disconnected', (reason) => {
 
+    console.log('================================');
     console.log('DISCONNECTED:', reason);
+    console.log('================================');
 });
 
 client.on('auth_failure', (msg) => {
 
+    console.log('================================');
     console.log('AUTH FAILURE:', msg);
+    console.log('================================');
 });
 
 /*
-================================================
-HOME
-================================================
+==================================================
+HOME ROUTE
+==================================================
 */
 
 app.get('/', (req, res) => {
 
     res.json({
         status: true,
-        message: 'API Running'
+        message: 'WhatsApp API Running'
     });
 });
 
 /*
-================================================
-QR
-================================================
+==================================================
+QR ROUTE
+==================================================
 */
 
 app.get('/qr', async (req, res) => {
@@ -120,9 +141,16 @@ app.get('/qr', async (req, res) => {
 
         res.send(`
             <html>
-                <body style="text-align:center;padding-top:30px;">
+                <head>
+                    <title>WhatsApp QR</title>
+                </head>
+
+                <body style="text-align:center;padding-top:40px;font-family:Arial;">
+
                     <h2>Scan WhatsApp QR</h2>
+
                     <img src="${qrImage}" />
+
                 </body>
             </html>
         `);
@@ -134,26 +162,44 @@ app.get('/qr', async (req, res) => {
 });
 
 /*
-================================================
-STATUS
-================================================
+==================================================
+STATUS ROUTE
+==================================================
 */
 
 app.get('/status', async (req, res) => {
 
     try {
 
-        const state = await client.getState();
+        let state = null;
 
-        res.json({
+        try {
+
+            state = await client.getState();
+
+        } catch (e) {
+
+            state = null;
+        }
+
+        return res.json({
+
             connected: !!client.info,
+
             state: state,
-            info: client.info || null
+
+            info: client.info
+                ? {
+                    number: client.info.wid.user,
+                    pushname: client.info.pushname,
+                    platform: client.info.platform
+                }
+                : null
         });
 
     } catch (err) {
 
-        res.json({
+        return res.json({
             connected: false,
             error: err.message
         });
@@ -161,15 +207,18 @@ app.get('/status', async (req, res) => {
 });
 
 /*
-================================================
-SEND
-================================================
+==================================================
+SEND MESSAGE ROUTE
+==================================================
 */
 
 app.post('/send', async (req, res) => {
 
     try {
 
+        /*
+        CHECK WHATSAPP READY
+        */
         if (!client.info) {
 
             return res.json({
@@ -181,6 +230,9 @@ app.post('/send', async (req, res) => {
         const number = req.body.number;
         const message = req.body.message;
 
+        /*
+        VALIDATION
+        */
         if (!number || !message) {
 
             return res.json({
@@ -189,13 +241,73 @@ app.post('/send', async (req, res) => {
             });
         }
 
-        const chatId = number.replace(/\D/g, '') + '@c.us';
+        /*
+        CLEAN NUMBER
+        */
+        const cleanNumber = number.replace(/\D/g, '');
 
+        /*
+        FORMAT CHAT ID
+        */
+        const chatId = cleanNumber + '@c.us';
+
+        console.log('SENDING TO:', chatId);
+
+        /*
+        SEND MESSAGE
+        */
         const response = await client.sendMessage(chatId, message);
+
+        return res.json({
+            status: true,
+            message: 'Message sent successfully',
+            id: response.id.id
+        });
+
+    } catch (err) {
+
+        console.log('SEND ERROR:', err);
+
+        return res.json({
+            status: false,
+            error: err.message
+        });
+    }
+});
+
+/*
+==================================================
+TEST BROWSER
+==================================================
+*/
+
+app.get('/test-browser', async (req, res) => {
+
+    try {
+
+        const puppeteer = require('puppeteer');
+
+        const browser = await puppeteer.launch({
+
+            headless: true,
+
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox'
+            ]
+        });
+
+        const page = await browser.newPage();
+
+        await page.goto('https://google.com');
+
+        const title = await page.title();
+
+        await browser.close();
 
         res.json({
             status: true,
-            response
+            title: title
         });
 
     } catch (err) {
@@ -208,30 +320,36 @@ app.post('/send', async (req, res) => {
 });
 
 /*
-================================================
+==================================================
 START SERVER
-================================================
+==================================================
 */
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
 
+    console.log('================================');
     console.log('SERVER STARTED:', PORT);
+    console.log('================================');
 });
 
 /*
-================================================
-INITIALIZE
-================================================
+==================================================
+INITIALIZE CLIENT
+==================================================
 */
 
 client.initialize()
 .then(() => {
 
+    console.log('================================');
     console.log('CLIENT INITIALIZED');
+    console.log('================================');
 })
 .catch(err => {
 
+    console.log('================================');
     console.log('INITIALIZE ERROR:', err);
+    console.log('================================');
 });
