@@ -85,15 +85,29 @@ client.on('authenticated', () => {
     console.log('================================');
 });
 
-client.on('ready', () => {
+
+let connectedInfo = null;
+
+client.on('ready', async () => {
 
     console.log('================================');
     console.log('WHATSAPP READY');
     console.log('================================');
 
-    if (client.info) {
+    try {
 
-        console.log('CONNECTED NUMBER:', client.info.wid.user);
+        /*
+        WAIT A LITTLE
+        */
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        connectedInfo = client.info;
+
+        console.log('CLIENT INFO:', connectedInfo);
+
+    } catch (err) {
+
+        console.log('READY ERROR:', err);
     }
 });
 
@@ -180,6 +194,7 @@ STATUS ROUTE
 ==================================================
 */
 
+
 app.get('/status', async (req, res) => {
 
     try {
@@ -197,15 +212,15 @@ app.get('/status', async (req, res) => {
 
         return res.json({
 
-            connected: !!client.info,
+            connected: state === 'CONNECTED',
 
             state: state,
 
-            info: client.info
+            info: connectedInfo
                 ? {
-                    number: client.info.wid.user,
-                    pushname: client.info.pushname,
-                    platform: client.info.platform
+                    number: connectedInfo.wid.user,
+                    pushname: connectedInfo.pushname,
+                    platform: connectedInfo.platform
                 }
                 : null
         });
@@ -218,7 +233,6 @@ app.get('/status', async (req, res) => {
         });
     }
 });
-
 /*
 ==================================================
 SEND MESSAGE ROUTE
