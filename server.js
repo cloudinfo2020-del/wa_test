@@ -28,16 +28,18 @@ const client = new Client({
         dataPath: './sessions'
     }),
 
-    puppeteer: {
+    
+puppeteer: {
 
-        headless: true,
+    headless: true,
 
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox'
-        ]
-    },
+    executablePath: '/opt/render/.cache/puppeteer/chrome/linux-119.0.6045.105/chrome-linux64/chrome',
 
+    args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+    ]
+},
     webVersionCache: {
         type: 'none'
     }
