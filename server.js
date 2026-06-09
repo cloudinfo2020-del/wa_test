@@ -33,18 +33,21 @@ const client = new Client({
 
     puppeteer: {
 
-        headless: true,
+    headless: true,
 
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process'
-        ]
-    },
+    args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process'
+    ],
+
+    protocolTimeout: 120000
+},
 
     webVersionCache: {
         type: 'none'
