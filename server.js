@@ -1,6 +1,7 @@
 const express = require('express');
-const QRCode = require('qrcode');
 const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 
 const app = express();
 
@@ -8,86 +9,142 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /*
-=====================================
+==================================================
+VARIABLES
+==================================================
+*/
+
+let qrCodeData = '';
+let isClientReady = false;
+let connectedNumber = '';
+
+/*
+==================================================
 WHATSAPP CLIENT
-=====================================
+==================================================
 */
 
 const client = new Client({
+
     authStrategy: new LocalAuth({
         dataPath: './sessions'
     }),
 
     puppeteer: {
+
         headless: true,
 
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process'
+            '--disable-dev-shm-usage'
         ],
 
-        timeout: 300000,
-        protocolTimeout: 300000
-    },
-
-    webVersionCache: {
-        type: 'none'
-    },
-
-    restartOnAuthFail: true
+        protocolTimeout: 120000
+    }
 });
+
 /*
-=====================================
-QR
-=====================================
+==================================================
+QR EVENT
+==================================================
 */
-let qrCodeData = '';
 
 client.on('qr', async (qr) => {
 
+    console.log('================================');
     console.log('QR RECEIVED');
+    console.log('================================');
 
     qrCodeData = qr;
+
+    qrcode.generate(qr, { small: true });
 });
 
 /*
-=====================================
-READY
-=====================================
+==================================================
+READY EVENT
+==================================================
 */
 
-client.on('ready', () => {
+client.on('ready', async () => {
 
-    console.log('====================');
+    console.log('================================');
     console.log('WHATSAPP READY');
-    console.log('====================');
+    console.log('================================');
+
+    isClientReady = true;
+
+    try {
+
+        connectedNumber = client.info.wid.user;
+
+        console.log('CONNECTED NUMBER:', connectedNumber);
+
+    } catch (err) {
+
+        console.log(err);
+    }
 });
 
 /*
-=====================================
-ERRORS
-=====================================
+==================================================
+AUTHENTICATED
+==================================================
 */
 
-client.on('auth_failure', msg => {
+client.on('authenticated', () => {
+
+    console.log('AUTHENTICATED');
+});
+
+/*
+==================================================
+AUTH FAILURE
+==================================================
+*/
+
+client.on('auth_failure', (msg) => {
+
     console.log('AUTH FAILURE:', msg);
+
+    isClientReady = false;
 });
 
-client.on('disconnected', reason => {
+/*
+==================================================
+DISCONNECTED
+==================================================
+*/
+
+client.on('disconnected', (reason) => {
+
     console.log('DISCONNECTED:', reason);
+
+    isClientReady = false;
+
+    connectedNumber = '';
 });
 
-client.on('change_state', state => {
-    console.log('STATE:', state);
+/*
+==================================================
+HOME ROUTE
+==================================================
+*/
+
+app.get('/', (req, res) => {
+
+    res.json({
+        status: true,
+        message: 'WhatsApp API Running'
+    });
 });
 
-
+/*
+==================================================
+QR ROUTE
+==================================================
+*/
 
 app.get('/qr', async (req, res) => {
 
@@ -102,9 +159,16 @@ app.get('/qr', async (req, res) => {
 
         res.send(`
             <html>
-                <body style="text-align:center;font-family:Arial">
+                <head>
+                    <title>WhatsApp QR</title>
+                </head>
+
+                <body style="text-align:center;font-family:Arial;padding-top:30px;">
+
                     <h2>Scan WhatsApp QR</h2>
+
                     <img src="${qrImage}" />
+
                 </body>
             </html>
         `);
@@ -114,24 +178,48 @@ app.get('/qr', async (req, res) => {
         res.send(err.message);
     }
 });
+
 /*
-=====================================
-HOME
-=====================================
+==================================================
+STATUS ROUTE
+==================================================
 */
 
-app.get('/', (req, res) => {
+app.get('/status', async (req, res) => {
 
-    res.json({
-        status: true,
-        message: 'WhatsApp API Running'
-    });
+    try {
+
+        if (!isClientReady || !client.info) {
+
+            return res.json({
+                status: false,
+                connected: false,
+                message: 'WhatsApp not connected'
+            });
+        }
+
+        return res.json({
+            status: true,
+            connected: true,
+            number: connectedNumber,
+            pushname: client.info.pushname,
+            platform: client.info.platform
+        });
+
+    } catch (err) {
+
+        return res.json({
+            status: false,
+            connected: false,
+            error: err.message
+        });
+    }
 });
 
 /*
-=====================================
-SEND MESSAGE
-=====================================
+==================================================
+SEND MESSAGE ROUTE
+==================================================
 */
 
 app.post('/send', async (req, res) => {
@@ -141,6 +229,9 @@ app.post('/send', async (req, res) => {
         const number = req.body.number;
         const message = req.body.message;
 
+        /*
+        VALIDATION
+        */
         if (!number || !message) {
 
             return res.status(400).json({
@@ -156,7 +247,7 @@ app.post('/send', async (req, res) => {
 
             return res.status(500).json({
                 status: false,
-                error: 'WhatsApp not connected'
+                error: 'WhatsApp client not ready'
             });
         }
 
@@ -165,66 +256,92 @@ app.post('/send', async (req, res) => {
         */
         const cleanNumber = number.replace(/\D/g, '');
 
+        /*
+        FORMAT CHAT ID
+        */
         const chatId = cleanNumber + '@c.us';
 
-        console.log('Checking:', chatId);
+        console.log('Sending to:', chatId);
 
         /*
-        VERIFY NUMBER
+        WAIT BEFORE SEND
         */
-        const exists = await client.isRegisteredUser(chatId);
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        if (!exists) {
+        let sent = null;
+        let retry = 0;
 
-            return res.json({
+        /*
+        RETRY SYSTEM
+        */
+        while (retry < 3) {
+
+            try {
+
+                sent = await client.sendMessage(chatId, message);
+
+                break;
+
+            } catch (err) {
+
+                console.log('Retry Error:', err.message);
+
+                retry++;
+
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+        }
+
+        /*
+        FAILED
+        */
+        if (!sent) {
+
+            return res.status(500).json({
                 status: false,
-                error: 'Number not on WhatsApp'
+                error: 'Failed after retries'
             });
         }
 
-        console.log('Sending message...');
-
         /*
-        SEND MESSAGE
+        SUCCESS
         */
-        const sent = await client.sendMessage(chatId, message);
-
-        console.log('Message sent');
-
         return res.json({
             status: true,
             message: 'Message sent successfully',
             id: sent.id.id
         });
 
-    } catch (err) {
+    } catch (error) {
 
-        console.log('FULL ERROR:', err);
+        console.log('FULL ERROR:', error);
 
         return res.status(500).json({
             status: false,
-            error: err.message
+            error: error.message
         });
     }
 });
 
 /*
-=====================================
+==================================================
 START SERVER
-=====================================
+==================================================
 */
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
 
-    console.log('Server started on port ' + PORT);
+    console.log('================================');
+    console.log('SERVER STARTED ON PORT:', PORT);
+    console.log('================================');
 });
 
 /*
-=====================================
-INITIALIZE
-=====================================
+==================================================
+INITIALIZE CLIENT
+==================================================
 */
 
 client.initialize();
