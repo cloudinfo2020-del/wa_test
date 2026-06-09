@@ -29,26 +29,29 @@ WHATSAPP CLIENT
 const client = new Client({
 
     authStrategy: new LocalAuth({
-
-        dataPath: './data/sessions'
-
+        dataPath: './sessions'
     }),
 
     puppeteer: {
         headless: true,
+
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage'
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
         ],
 
-        protocolTimeout: 120000
+        protocolTimeout: 300000
+    },
+
+    webVersionCache: {
+        type: 'none'
     },
 
     takeoverOnConflict: true,
-    takeoverTimeoutMs: 60000
+    takeoverTimeoutMs: 120000
 });
-
 
 /*
 QR EVENT
@@ -174,111 +177,84 @@ app.post('/send', async (req, res) => {
 
     try {
 
-        /*
-        CHECK WHATSAPP READY
-        */
-
-        if (!client.info) {
-
-            return res.json({
-
-                status: false,
-
-                error: 'WhatsApp not connected'
-
-            });
-
-        }
-
-        /*
-        GET DATA
-        */
-
-        let number =
-            req.body.number;
-
-        const message =
-            req.body.message;
+        const number = req.body.number;
+        const message = req.body.message;
 
         /*
         VALIDATION
         */
-
         if (!number || !message) {
 
-            return res.json({
-
+            return res.status(400).json({
                 status: false,
-
                 error: 'number and message required'
-
             });
+        }
 
+        /*
+        CHECK WHATSAPP READY
+        */
+        if (!client.info) {
+
+            return res.status(500).json({
+                status: false,
+                error: 'WhatsApp client not ready'
+            });
         }
 
         /*
         CLEAN NUMBER
         */
-
-        number = number.replace(/\D/g, '');
-
-        /*
-        CREATE CHAT ID
-        */
-
-        const chatId =
-            number + '@c.us';
+        const cleanNumber = number.replace(/\D/g, '');
 
         /*
-        CHECK REGISTERED
+        FORMAT CHAT ID
         */
+        const chatId = cleanNumber + '@c.us';
 
-        const isRegistered =
-            await client.isRegisteredUser(chatId);
+        console.log('Checking number:', chatId);
+
+        /*
+        CHECK NUMBER EXISTS
+        */
+        const isRegistered = await client.isRegisteredUser(chatId);
 
         if (!isRegistered) {
 
             return res.json({
-
                 status: false,
-
-                error: 'Number not in WhatsApp'
-
+                error: 'WhatsApp number not found'
             });
-
         }
+
+        /*
+        SMALL DELAY
+        */
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        console.log('Sending message to:', chatId);
 
         /*
         SEND MESSAGE
         */
-
-        await client.sendMessage(
-            chatId,
-            message
-        );
+        const response = await client.sendMessage(chatId, message);
 
         return res.json({
-
             status: true,
-
-            message: 'Message Sent'
-
+            message: 'Message sent successfully',
+            id: response.id.id
         });
 
     } catch (error) {
 
-        return res.json({
+        console.log('FULL ERROR:', error);
 
+        return res.status(500).json({
             status: false,
-
             error: error.message
-
         });
-
     }
-
 });
-
 /*
 PORT
 */
