@@ -74,13 +74,22 @@ READY EVENT
 ==================================================
 */
 
+let clientReady = false;
+let connectedNumber = '';
+
+/*
+========================================
+READY EVENT
+========================================
+*/
+
 client.on('ready', async () => {
 
     console.log('================================');
     console.log('WHATSAPP READY');
     console.log('================================');
 
-    isClientReady = true;
+    clientReady = true;
 
     try {
 
@@ -95,9 +104,20 @@ client.on('ready', async () => {
 });
 
 /*
-==================================================
+========================================
+LOADING
+========================================
+*/
+
+client.on('loading_screen', (percent, message) => {
+
+    console.log('LOADING:', percent, message);
+});
+
+/*
+========================================
 AUTHENTICATED
-==================================================
+========================================
 */
 
 client.on('authenticated', () => {
@@ -106,33 +126,19 @@ client.on('authenticated', () => {
 });
 
 /*
-==================================================
-AUTH FAILURE
-==================================================
-*/
-
-client.on('auth_failure', (msg) => {
-
-    console.log('AUTH FAILURE:', msg);
-
-    isClientReady = false;
-});
-
-/*
-==================================================
+========================================
 DISCONNECTED
-==================================================
+========================================
 */
 
 client.on('disconnected', (reason) => {
 
     console.log('DISCONNECTED:', reason);
 
-    isClientReady = false;
+    clientReady = false;
 
     connectedNumber = '';
 });
-
 /*
 ==================================================
 HOME ROUTE
@@ -196,21 +202,38 @@ app.get('/status', async (req, res) => {
 
     try {
 
-        if (!isClientReady || !client.info) {
+        /*
+        CHECK STATE
+        */
+        const state = await client.getState();
+
+        /*
+        CONNECTED
+        */
+        if (
+            state === 'CONNECTED' ||
+            state === 'OPENING' ||
+            client.info
+        ) {
 
             return res.json({
-                status: false,
-                connected: false,
-                message: 'WhatsApp not connected'
+                status: true,
+                connected: true,
+                state: state,
+                number: client.info?.wid?.user || connectedNumber || '',
+                pushname: client.info?.pushname || '',
+                platform: client.info?.platform || ''
             });
         }
 
+        /*
+        NOT CONNECTED
+        */
         return res.json({
-            status: true,
-            connected: true,
-            number: connectedNumber,
-            pushname: client.info.pushname,
-            platform: client.info.platform
+            status: false,
+            connected: false,
+            state: state,
+            message: 'WhatsApp not connected'
         });
 
     } catch (err) {
@@ -222,7 +245,6 @@ app.get('/status', async (req, res) => {
         });
     }
 });
-
 /*
 ==================================================
 SEND MESSAGE ROUTE
