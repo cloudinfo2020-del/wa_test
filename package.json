@@ -1,3 +1,4 @@
+
 {
   "name": "wa_test",
   "version": "1.0.0",
@@ -15,7 +16,6 @@
     "express": "^4.18.2",
     "puppeteer": "21.7.0",
     "qrcode": "^1.5.4",
-    "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "1.23.0"
   }
 }
