@@ -4,8 +4,7 @@
   "main": "server.js",
 
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "npx puppeteer browsers install chrome"
+    "start": "node server.js"
   },
 
   "engines": {
@@ -19,3 +18,4 @@
     "whatsapp-web.js": "1.23.0"
   }
 }
+
