@@ -32,6 +32,7 @@ WHATSAPP CLIENT
 const puppeteer = require('puppeteer');
 
 
+
 const client = new Client({
 
     authStrategy: new LocalAuth({
@@ -43,6 +44,8 @@ const client = new Client({
 
         headless: true,
 
+        executablePath: '/usr/bin/chromium',
+
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox'
@@ -53,6 +56,8 @@ const client = new Client({
         type: 'none'
     }
 });
+
+
 
 
 
