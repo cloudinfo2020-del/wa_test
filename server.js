@@ -29,6 +29,8 @@ WHATSAPP CLIENT
 */
 
 
+const puppeteer = require('puppeteer');
+
 const client = new Client({
 
     authStrategy: new LocalAuth({
@@ -40,7 +42,7 @@ const client = new Client({
 
         headless: true,
 
-        channel: 'chrome',
+        executablePath: puppeteer.executablePath(),
 
         args: [
             '--no-sandbox',
@@ -290,13 +292,11 @@ app.get('/test-browser', async (req, res) => {
 
     try {
 
-        const puppeteer = require('puppeteer');
-
         const browser = await puppeteer.launch({
 
             headless: true,
 
-            channel: 'chrome',
+            executablePath: puppeteer.executablePath(),
 
             args: [
                 '--no-sandbox',
@@ -325,7 +325,6 @@ app.get('/test-browser', async (req, res) => {
         });
     }
 });
-
 /*
 ==================================================
 START SERVER
