@@ -1,33 +1,18 @@
-
 const express = require('express');
-
-const {
-    Client,
-    LocalAuth
-} = require('whatsapp-web.js');
-
-const qrcode = require('qrcode');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 
 const app = express();
 
-/*
-BODY PARSER
-*/
-
 app.use(express.json());
-
-app.use(express.urlencoded({
-    extended: true
-}));
-
-let qrCodeImage = null;
+app.use(express.urlencoded({ extended: true }));
 
 /*
+=====================================
 WHATSAPP CLIENT
+=====================================
 */
 
 const client = new Client({
-
     authStrategy: new LocalAuth({
         dataPath: './sessions'
     }),
@@ -35,13 +20,20 @@ const client = new Client({
     puppeteer: {
         headless: true,
 
+        executablePath: '/usr/bin/google-chrome',
+
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-gpu'
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process'
         ],
 
+        timeout: 300000,
         protocolTimeout: 300000
     },
 
@@ -49,128 +41,75 @@ const client = new Client({
         type: 'none'
     },
 
-    takeoverOnConflict: true,
-    takeoverTimeoutMs: 120000
+    restartOnAuthFail: true
 });
 
 /*
-QR EVENT
+=====================================
+QR
+=====================================
 */
 
-client.on('qr', async (qr) => {
+client.on('qr', (qr) => {
 
-    console.log('QR RECEIVED');
+    console.log('====================');
+    console.log('SCAN QR CODE');
+    console.log('====================');
 
-    qrCodeImage =
-        await qrcode.toDataURL(qr);
+    const qrcode = require('qrcode-terminal');
 
+    qrcode.generate(qr, { small: true });
 });
 
 /*
+=====================================
 READY
+=====================================
 */
 
 client.on('ready', () => {
 
-    console.log(
-        'WhatsApp Ready'
-    );
-
+    console.log('====================');
+    console.log('WHATSAPP READY');
+    console.log('====================');
 });
 
 /*
-AUTHENTICATED
+=====================================
+ERRORS
+=====================================
 */
 
-client.on('authenticated', () => {
-
-    console.log(
-        'Authenticated'
-    );
-
+client.on('auth_failure', msg => {
+    console.log('AUTH FAILURE:', msg);
 });
-
-/*
-DISCONNECTED
-*/
 
 client.on('disconnected', reason => {
+    console.log('DISCONNECTED:', reason);
+});
 
-    console.log(
-        'Disconnected',
-        reason
-    );
-
+client.on('change_state', state => {
+    console.log('STATE:', state);
 });
 
 /*
-INITIALIZE
-*/
-
-client.initialize();
-
-/*
+=====================================
 HOME
+=====================================
 */
 
 app.get('/', (req, res) => {
 
-    res.send(
-        'WhatsApp Server Running'
-    );
-
-});
-
-/*
-QR PAGE
-*/
-
-app.get('/qr', (req, res) => {
-
-    if (!qrCodeImage) {
-
-        return res.send(
-            'QR Loading...'
-        );
-
-    }
-
-    res.send(`
-        <h2>Scan WhatsApp QR</h2>
-        <img src="${qrCodeImage}" />
-    `);
-
-});
-
-/*
-STATUS
-*/
-
-app.get('/status', (req, res) => {
-
-    if (client.info) {
-
-        return res.json({
-
-            connected: true,
-
-            number:
-                client.info.wid.user
-
-        });
-
-    }
-
     res.json({
-
-        connected: false
-
+        status: true,
+        message: 'WhatsApp API Running'
     });
-
 });
 
 /*
-SEND MESSAGE API
+=====================================
+SEND MESSAGE
+=====================================
 */
 
 app.post('/send', async (req, res) => {
@@ -180,9 +119,6 @@ app.post('/send', async (req, res) => {
         const number = req.body.number;
         const message = req.body.message;
 
-        /*
-        VALIDATION
-        */
         if (!number || !message) {
 
             return res.status(400).json({
@@ -192,13 +128,13 @@ app.post('/send', async (req, res) => {
         }
 
         /*
-        CHECK WHATSAPP READY
+        CHECK READY
         */
         if (!client.info) {
 
             return res.status(500).json({
                 status: false,
-                error: 'WhatsApp client not ready'
+                error: 'WhatsApp not connected'
             });
         }
 
@@ -207,65 +143,66 @@ app.post('/send', async (req, res) => {
         */
         const cleanNumber = number.replace(/\D/g, '');
 
-        /*
-        FORMAT CHAT ID
-        */
         const chatId = cleanNumber + '@c.us';
 
-        console.log('Checking number:', chatId);
+        console.log('Checking:', chatId);
 
         /*
-        CHECK NUMBER EXISTS
+        VERIFY NUMBER
         */
-        const isRegistered = await client.isRegisteredUser(chatId);
+        const exists = await client.isRegisteredUser(chatId);
 
-        if (!isRegistered) {
+        if (!exists) {
 
             return res.json({
                 status: false,
-                error: 'WhatsApp number not found'
+                error: 'Number not on WhatsApp'
             });
         }
 
-        /*
-        SMALL DELAY
-        */
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        console.log('Sending message to:', chatId);
+        console.log('Sending message...');
 
         /*
         SEND MESSAGE
         */
-        const response = await client.sendMessage(chatId, message);
+        const sent = await client.sendMessage(chatId, message);
+
+        console.log('Message sent');
 
         return res.json({
             status: true,
             message: 'Message sent successfully',
-            id: response.id.id
+            id: sent.id.id
         });
 
-    } catch (error) {
+    } catch (err) {
 
-        console.log('FULL ERROR:', error);
+        console.log('FULL ERROR:', err);
 
         return res.status(500).json({
             status: false,
-            error: error.message
+            error: err.message
         });
     }
 });
+
 /*
-PORT
+=====================================
+START SERVER
+=====================================
 */
 
-const PORT =
-    process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
 
-    console.log(
-        'Server Running on Port ' + PORT
-    );
-
+    console.log('Server started on port ' + PORT);
 });
+
+/*
+=====================================
+INITIALIZE
+=====================================
+*/
+
+client.initialize();
