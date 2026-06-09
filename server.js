@@ -20,8 +20,6 @@ const client = new Client({
     puppeteer: {
         headless: true,
 
-        executablePath: '/usr/bin/google-chrome',
-
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -43,7 +41,6 @@ const client = new Client({
 
     restartOnAuthFail: true
 });
-
 /*
 =====================================
 QR
