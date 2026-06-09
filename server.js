@@ -1,4 +1,5 @@
 const express = require('express');
+const QRCode = require('qrcode');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
 const app = express();
@@ -46,16 +47,13 @@ const client = new Client({
 QR
 =====================================
 */
+let qrCodeData = '';
 
-client.on('qr', (qr) => {
+client.on('qr', async (qr) => {
 
-    console.log('====================');
-    console.log('SCAN QR CODE');
-    console.log('====================');
+    console.log('QR RECEIVED');
 
-    const qrcode = require('qrcode-terminal');
-
-    qrcode.generate(qr, { small: true });
+    qrCodeData = qr;
 });
 
 /*
@@ -89,6 +87,33 @@ client.on('change_state', state => {
     console.log('STATE:', state);
 });
 
+
+
+app.get('/qr', async (req, res) => {
+
+    try {
+
+        if (!qrCodeData) {
+
+            return res.send('QR Code not generated yet');
+        }
+
+        const qrImage = await QRCode.toDataURL(qrCodeData);
+
+        res.send(`
+            <html>
+                <body style="text-align:center;font-family:Arial">
+                    <h2>Scan WhatsApp QR</h2>
+                    <img src="${qrImage}" />
+                </body>
+            </html>
+        `);
+
+    } catch (err) {
+
+        res.send(err.message);
+    }
+});
 /*
 =====================================
 HOME
