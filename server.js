@@ -27,7 +27,8 @@ WHATSAPP CLIENT
 const client = new Client({
 
     authStrategy: new LocalAuth({
-        dataPath: './sessions'
+        clientId: "client-one",
+        dataPath: "./sessions"
     }),
 
     puppeteer: {
@@ -37,10 +38,12 @@ const client = new Client({
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage'
-        ],
-
-        protocolTimeout: 120000
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process'
+        ]
     },
 
     webVersionCache: {
