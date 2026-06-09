@@ -17,6 +17,14 @@ let qrCodeData = '';
 
 /*
 ==================================================
+CHROME PATH
+==================================================
+*/
+
+const CHROME_PATH = '/opt/render/.cache/puppeteer/chrome/linux-119.0.6045.105/chrome-linux64/chrome';
+
+/*
+==================================================
 WHATSAPP CLIENT
 ==================================================
 */
@@ -28,18 +36,18 @@ const client = new Client({
         dataPath: './sessions'
     }),
 
-    
-puppeteer: {
+    puppeteer: {
 
-    headless: true,
+        headless: true,
 
-    executablePath: '/opt/render/.cache/puppeteer/chrome/linux-119.0.6045.105/chrome-linux64/chrome',
+        executablePath: CHROME_PATH,
 
-    args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox'
-    ]
-},
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox'
+        ]
+    },
+
     webVersionCache: {
         type: 'none'
     }
@@ -77,13 +85,6 @@ client.on('ready', () => {
 
         console.log('CONNECTED NUMBER:', client.info.wid.user);
     }
-});
-
-client.on('remote_session_saved', () => {
-
-    console.log('================================');
-    console.log('SESSION SAVED');
-    console.log('================================');
 });
 
 client.on('loading_screen', (percent, message) => {
@@ -279,7 +280,7 @@ app.post('/send', async (req, res) => {
 
 /*
 ==================================================
-TEST BROWSER
+TEST BROWSER ROUTE
 ==================================================
 */
 
@@ -292,6 +293,8 @@ app.get('/test-browser', async (req, res) => {
         const browser = await puppeteer.launch({
 
             headless: true,
+
+            executablePath: CHROME_PATH,
 
             args: [
                 '--no-sandbox',
